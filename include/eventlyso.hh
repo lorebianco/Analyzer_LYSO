@@ -18,7 +18,7 @@ class EventLYSO
 {
 public:
     EventLYSO() = default;
-    EventLYSO(Int_t evtID, ROOT::RVecD times, std::vector<ROOT::RVecD> volts_F, std::vector<ROOT::RVecD> volts_B);
+    EventLYSO(Int_t evtID, std::vector<ROOT::RVecD> times_F, std::vector<ROOT::RVecD> times_B, std::vector<ROOT::RVecD> volts_F, std::vector<ROOT::RVecD> volts_B);
     ~EventLYSO() = default;
 
     void CalculateEstimatorsForEveryMPPC();
@@ -38,12 +38,14 @@ public:
     inline Double_t GetBackMaxX() const { return detX[FindBackChOfMaxAmplitude()]; }; 
     inline Double_t GetBackMaxY() const { return detY[FindBackChOfMaxAmplitude()]; };
 
-    Double_t GetRadius(const char* face = "F", const char* optR0 = "CHMAX", ROOT::RVecI channels = ROOT::VecOps::Range(CHANNELS)) const;
+    Double_t GetMeanRadius(const char* face = "F", const char* optR0 = "CHMAX", Int_t nOfChannels = CHANNELS);
 
     // Global Estimation Methods
         // Energy
     void MeasureDetectorCharge(ROOT::RVecI channelsFront = ROOT::VecOps::Range(CHANNELS), ROOT::RVecI channelsBack = ROOT::VecOps::Range(CHANNELS));
+        // Time
 
+        // Position
 
 private:
     // Auxiliary methods
@@ -70,7 +72,8 @@ private:
     ROOT::RVecD fAmplitudes_B; //!
     ROOT::RVecD fTimeCFs_B; //!
 
-    // Other 'global' estimators
+
+    // Global estimators
     Double_t Charge_F;
     Double_t Charge_B;
     Double_t Charge_Tot;

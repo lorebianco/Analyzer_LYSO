@@ -1,0 +1,16 @@
+# File analyze.mac
+#
+# Baseline evaluated in [lowBase, upBase]:
+lowBase = 100
+upBase = 300
+#
+# Charge and amplitude evaluated in [lowInt, upInt]:
+lowInt = 400
+upInt = 1000
+#
+#
+# Constant fraction for single MPPC waves:
+timeCF = 0.25
+#
+# Constant fraction for sum of waves
+timeCF_Sum = 0.25

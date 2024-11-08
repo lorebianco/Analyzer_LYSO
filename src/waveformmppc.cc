@@ -21,18 +21,32 @@ WaveformMPPC::WaveformMPPC(WaveDRS wave)
 
 
 
-void WaveformMPPC::MeasureCharge()
+void WaveformMPPC::MeasureCharge(Int_t binStart, Int_t binStop)
 {
-    Charge = Sum(Baseline - fWave.samples);
+    // Convention is [binStart, binStop]
+    binStop++;
+    auto w = Take(fWave.samples, binStop);
+    w = Take(w, binStart - binStop);
+    auto t = Take(fWave.times, binStop);
+    t = Take(t, binStart - binStop);
+
+    Charge = 0;
+    for(auto i = 0; i < (binStop - binStart - 1); i++)
+    {
+        Charge += (2*Baseline - (w[i] + w[i+1]))*(t[i+1]-t[i])*0.5;
+    }
 }
 
 
 
-void WaveformMPPC::MeasureAmplitude()
+void WaveformMPPC::MeasureAmplitude(Int_t binStart, Int_t binStop)
 {
+    // Convention is [binStart, binStop]
+    binStop++;
+    auto w = Take(fWave.samples, binStop);
+    w = Take(w, binStart - binStop);
+
     Amplitude = Max(Baseline - fWave.samples);
-    // Use an ubiased estimator
-    //Amplitude -= SigmaNoise*TMath::Sqrt(2*SAMPLINGS);
 }
 
 
@@ -48,8 +62,8 @@ void WaveformMPPC::MeasureTimeCF(Float_t frac)
     pair<Double_t, Double_t> infSample = make_pair(fWave.times[binOfTimeInf], fWave.samples[binOfTimeInf]);
     pair<Double_t, Double_t> supSample = make_pair(fWave.times[binOfTimeSup], fWave.samples[binOfTimeSup]);
 
+    // Linear interpolation
     TimeCF = ((thr - infSample.second)/(supSample.second - infSample.second))*(supSample.first - infSample.first) + infSample.first;
-
 }
 
 
@@ -59,12 +73,10 @@ void WaveformMPPC::MeasureBaseline(Int_t binStart, Int_t binStop)
     if(binStart >= binStop)
         cerr << "Limits not valid!" << endl;
 
-    // Rivedi questa cosa
-    binStart++;
+    // Convention is [binStart, binStop]
     binStop++;
-    
     auto w = Take(fWave.samples, binStop);
-    w = Take(w, binStart - (binStop + 1));
+    w = Take(w, binStart - binStop);
 
     Baseline = Mean(w);
     SigmaNoise = StdDev(w);

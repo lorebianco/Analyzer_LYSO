@@ -31,6 +31,12 @@ struct WaveDRS
         return *this;
     }
 
+    // Funzione di interpolazione lineare
+    static Double_t LinearInterpolate(Double_t x0, Double_t y0, Double_t x1, Double_t y1, Double_t x)
+    {
+        return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+    }
+
     // Operatore di somma
     WaveDRS operator+(const WaveDRS& other) const
     {
@@ -39,10 +45,38 @@ struct WaveDRS
             throw std::invalid_argument("The time vectors must have the same size");
         }
 
-        WaveDRS result = *this;
-        result.times = other.times;
-        result.samples += other.samples;
+        WaveDRS result;
+
+        for(size_t i = 0; i < times.size(); i++)
+        {
+            Double_t time1 = times[i];
+            Double_t time2 = other.times[i];
         
+            if(TMath::Abs(time1 - time2) < 1e-6)  // Tempi quasi uguali
+            {
+                result.times.push_back(time1);
+                result.samples.push_back(samples[i] + other.samples[i]);
+            }
+            else  // Tempi diversi, usa interpolazione o approssimazione ai bordi
+            {
+                Double_t meanTime = (time1 + time2) / 2;
+                Double_t interpSample1, interpSample2;
+
+                if(i == 0 || i == times.size() - 1)  // Gestione dei bordi: usa valori diretti
+                {
+                    interpSample1 = samples[i];
+                    interpSample2 = other.samples[i];
+                }
+                else  // Interpolazione normale
+                {
+                    interpSample1 = LinearInterpolate(times[i-1], samples[i-1], times[i+1], samples[i+1], meanTime);
+                    interpSample2 = LinearInterpolate(other.times[i-1], other.samples[i-1], other.times[i+1], other.samples[i+1], meanTime);
+                }
+
+                result.times.push_back(meanTime);
+                result.samples.push_back(interpSample1 + interpSample2);
+            }
+        }
         return result;
     }
 
@@ -54,11 +88,40 @@ struct WaveDRS
             throw std::invalid_argument("The time vectors must have the same size");
         }
 
-        times = other.times;
-        samples += other.samples;
+        for(size_t i = 0; i < times.size(); i++)
+        {
+            Double_t time1 = times[i];
+            Double_t time2 = other.times[i];
+
+            if(TMath::Abs(time1 - time2) < 1e-6)  // Tempi quasi uguali
+            {
+                samples[i] += other.samples[i];
+            }
+            else  // Tempi diversi, usa interpolazione o approssimazione ai bordi
+            {
+                Double_t meanTime = (time1 + time2) / 2;
+                Double_t interpSample1, interpSample2;
+
+                if(i == 0 || i == times.size() - 1)  // Gestione dei bordi: usa valori diretti
+                {
+                    interpSample1 = samples[i];
+                    interpSample2 = other.samples[i];
+                }
+                else  // Interpolazione normale
+                {
+                    interpSample1 = LinearInterpolate(times[i-1], samples[i-1], times[i+1], samples[i+1], meanTime);
+                    interpSample2 = LinearInterpolate(other.times[i-1], other.samples[i-1], other.times[i+1], other.samples[i+1], meanTime);
+                }
+
+                // Aggiornamento di time e sample
+                times[i] = meanTime;
+                samples[i] = interpSample1 + interpSample2;
+            }
+        }
 
         return *this;
     }
+
 
     // Stampa per debugging
     void PrintWave() const
