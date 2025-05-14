@@ -20,12 +20,13 @@ class ConfigAnalyzer
     }
 
     // Configurable parameters
+    Float_t trgLevel;
     Int_t lowBase;
     Int_t upBase;
     Int_t lowInt;
     Int_t upInt;
-    Float_t timeCF;
-    Float_t timeCF_Sum;
+    Int_t nCircles_Time;
+    Int_t nCircles_Position;
 
     // Load configuration from a file
     void LoadConfig(const char* filename);

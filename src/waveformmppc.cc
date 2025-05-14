@@ -8,7 +8,9 @@ WaveformMPPC::WaveformMPPC(Int_t chid, RVecD times, RVecD volts)
 {
     Ch = chid;
     fWave = WaveDRS(times, volts);
+    
     MeasureBaseline();
+    fWave.SetBaseline(Baseline);
 }
 
 
@@ -16,7 +18,6 @@ WaveformMPPC::WaveformMPPC(Int_t chid, RVecD times, RVecD volts)
 WaveformMPPC::WaveformMPPC(WaveDRS wave)
 {
     fWave = wave;
-    MeasureBaseline();
 }
 
 
@@ -46,24 +47,63 @@ void WaveformMPPC::MeasureAmplitude(Int_t binStart, Int_t binStop)
     auto w = Take(fWave.samples, binStop);
     w = Take(w, binStart - binStop);
 
-    Amplitude = Max(Baseline - fWave.samples);
+    Amplitude = Max(Baseline - w);
+    
+    // Set trigger boolean
+    Trigger = Amplitude > -ConfigAnalyzer::GetInstance()->trgLevel;
 }
 
 
 
-void WaveformMPPC::MeasureTimeCF(Float_t frac)
+void WaveformMPPC::MeasureTimeCF(Float_t frac, Int_t leFrac)
 {
     MeasureAmplitude();
     Double_t thr = Baseline - Amplitude*frac;
     
-    Int_t binOfTimeSup = CrossingPoint(thr, false, 0, 1023);
-    Int_t binOfTimeInf = CrossingPoint(thr, true, binOfTimeSup, 0);
+    if(!Trigger)
+    {
+        TimeCF15 = -1; TimeCF25 = -1; TimeCF50 = -1;
+        return;
+    }
+
+    Int_t trgCell = CrossingPoint(Baseline + ConfigAnalyzer::GetInstance()->trgLevel, false, ZERO_TIME_BIN, 1023);
+    Int_t binOfTimeSup, binOfTimeInf;
+
+    if(thr < (Baseline + ConfigAnalyzer::GetInstance()->trgLevel))
+    {
+        binOfTimeSup = CrossingPoint(thr, false, trgCell, 1023);
+        binOfTimeInf = CrossingPoint(thr, true, binOfTimeSup, ZERO_TIME_BIN);
+    }
+    else
+    {
+        binOfTimeInf = CrossingPoint(thr, true, trgCell, ZERO_TIME_BIN);
+        binOfTimeSup = CrossingPoint(thr, false, binOfTimeInf, 1023);
+    }
 
     pair<Double_t, Double_t> infSample = make_pair(fWave.times[binOfTimeInf], fWave.samples[binOfTimeInf]);
     pair<Double_t, Double_t> supSample = make_pair(fWave.times[binOfTimeSup], fWave.samples[binOfTimeSup]);
 
     // Linear interpolation
-    TimeCF = ((thr - infSample.second)/(supSample.second - infSample.second))*(supSample.first - infSample.first) + infSample.first;
+    Double_t fTimeCF = ((thr - infSample.second)/(supSample.second - infSample.second))*(supSample.first - infSample.first) + infSample.first;
+
+    if(fTimeCF < 0.0)
+    {
+        cerr << "Le PROBLEM for frac = " << leFrac << "Threshold at " << thr << " Estimation at = " << fTimeCF << endl;
+    }
+
+    switch(leFrac)
+    {
+        case 15:
+        default:
+            TimeCF15 = fTimeCF;
+            break;
+        case 25:
+            TimeCF25 = fTimeCF;
+            break;
+        case 50:
+            TimeCF50 = fTimeCF;
+            break;
+    }
 }
 
 
@@ -84,7 +124,7 @@ void WaveformMPPC::MeasureBaseline(Int_t binStart, Int_t binStop)
 
 
 
-Double_t WaveformMPPC::CrossingPoint(Double_t value, Bool_t isGreaterOrLesser, Int_t binStart, Int_t binEnd)
+Int_t WaveformMPPC::CrossingPoint(Double_t value, Bool_t isGreaterOrLesser, Int_t binStart, Int_t binEnd)
 {
     auto& data = fWave.samples;
 
@@ -94,25 +134,31 @@ Double_t WaveformMPPC::CrossingPoint(Double_t value, Bool_t isGreaterOrLesser, I
         return isGreaterOrLesser ? sample >= value : sample <= value;
     };
 
+    // Check for search direction based on binStart and binEnd
     if(binStart <= binEnd)
     {
         // Forward search
-        auto it = find_if(data.begin() + binStart, data.begin() + binEnd + 1, compare);
-        if(it != data.begin() + binEnd + 1)
+        for (Int_t i = binStart; i <= binEnd; ++i)
         {
-            return distance(data.begin(), it);
+            if (compare(data[i]))
+            {
+                return i; // Return the bin index where the condition is first met
+            }
         }
     }
     else
     {
         // Reverse search
-        auto rit = find_if(make_reverse_iterator(data.begin() + binStart + 1), make_reverse_iterator(data.begin() + binEnd), compare);
-        if(rit != make_reverse_iterator(data.begin() + binEnd))
+        for (Int_t i = binStart; i >= binEnd; --i)
         {
-            return distance(data.begin(), rit.base() - 1);
+            if (compare(data[i]))
+            {
+                return i; // Return the bin index where the condition is first met
+            }
         }
     }
 
-    cerr << "ERROR! CROSSING POINT NOT FOUND!" << endl;
-    return -1; // Sample not found
+    // No crossing point found
+    cerr << "ERROR! CROSSING POINT NOT FOUND for value: " << value << ", starting from bin: " << binStart << " to bin: " << binEnd << endl;
+    return -1;
 }

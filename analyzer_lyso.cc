@@ -46,7 +46,7 @@ const char* GenerateOutputFilename(const std::string& barFilename)
         }
 
         // Costruisce il filename finale
-        static std::string outputFilename = "AnalyzerID_" + id + suffix + ".root";
+        static std::string outputFilename = "RootFiles/AnalyzerID_" + id + suffix + ".root";
         return outputFilename.c_str();
     } else {
         std::cerr << "Filename format not recognized." << std::endl;
@@ -70,21 +70,27 @@ int main(int argc, char** argv)
     const char *outputFilename = GenerateOutputFilename(barFilename);
 
     Int_t fEvent;
-    vector<RVecD> *fTime_F = 0;
-    vector<RVecD> *fTime_B = 0;
-    vector<RVecD> *fFront = 0; 
-    vector<RVecD> *fBack = 0; 
+    vector<RVecF> *fTime_F = 0;
+    vector<RVecF> *fTime_B = 0;
+    vector<RVecF> *fFront = 0; 
+    vector<RVecF> *fBack = 0; 
     
     unique_ptr<TFile> barFile(TFile::Open(barFilename, "READ"));
+    TTree *lyso_wfs_times = barFile->Get<TTree>("lyso_wfs_times");
     TTree *lyso_wfs = barFile->Get<TTree>("lyso_wfs");
 
     lyso_wfs->SetBranchAddress("Event", &fEvent);
-    lyso_wfs->SetBranchAddress("Time_F", &fTime_F);
-    lyso_wfs->SetBranchAddress("Time_B", &fTime_B);
+    lyso_wfs_times->SetBranchAddress("Time_F", &fTime_F);
+    lyso_wfs_times->SetBranchAddress("Time_B", &fTime_B);
     lyso_wfs->SetBranchAddress("Front", &fFront);
     lyso_wfs->SetBranchAddress("Back", &fBack);
 
+    lyso_wfs_times->GetEntry(0);
+    vector<RVecD> fTime_F_data(fTime_F->begin(), fTime_F->end());
+    vector<RVecD> fTime_B_data(fTime_B->begin(), fTime_B->end());
+
     Int_t nEntries = lyso_wfs->GetEntries();
+    
     cout << "AnalyzerWT>> Entries = " << nEntries << endl;
 
     unique_ptr<EventLYSO> eventlyso = nullptr;
@@ -99,15 +105,15 @@ int main(int argc, char** argv)
     for(Int_t k = 0; k < nEntries; k++)
     {
         lyso_wfs->GetEntry(k);
-        
-        vector<RVecD> fTime_F_data(fTime_F->begin(), fTime_F->end());
-        vector<RVecD> fTime_B_data(fTime_B->begin(), fTime_B->end());
+
         vector<RVecD> fFront_data(fFront->begin(), fFront->end());
         vector<RVecD> fBack_data(fBack->begin(), fBack->end());
 
         eventlyso = make_unique<EventLYSO>(fEvent, fTime_F_data, fTime_B_data, fFront_data, fBack_data);
         eventlyso->CalculateEstimatorsForEveryMPPC();
         eventlyso->MeasureDetectorCharge();
+        eventlyso->MeasureDetectorTime();
+        eventlyso->MeasureDetectorPosition();
 
         eventlyso_ptr = eventlyso.get();
         lyso_est->Fill();
@@ -120,6 +126,7 @@ int main(int argc, char** argv)
     outFile->cd();
     outFile->WriteObject(lyso_est.get(), "lyso_est");
 
+    delete lyso_wfs_times;
     delete lyso_wfs;
     delete fTime_F;
     delete fTime_B;

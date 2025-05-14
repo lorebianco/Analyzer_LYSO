@@ -24,7 +24,7 @@ class WaveformMPPC
     // Methods for estimation
     void MeasureCharge(Int_t binStart = ConfigAnalyzer::GetInstance()->lowInt, Int_t binStop = ConfigAnalyzer::GetInstance()->upInt);
     void MeasureAmplitude(Int_t binStart = ConfigAnalyzer::GetInstance()->lowInt, Int_t binStop = ConfigAnalyzer::GetInstance()->upInt);
-    void MeasureTimeCF(Float_t frac = ConfigAnalyzer::GetInstance()->timeCF);
+    void MeasureTimeCF(Float_t frac, Int_t leFrac);
     void MeasureBaseline(Int_t binStart = ConfigAnalyzer::GetInstance()->lowBase, Int_t binStop = ConfigAnalyzer::GetInstance()->upBase);
 
     // Getters
@@ -32,11 +32,14 @@ class WaveformMPPC
 
     inline Double_t GetCharge() const { return Charge; }
     inline Double_t GetAmplitude() const { return Amplitude; }
-    inline Double_t GetTimeCF() const { return TimeCF; }
+    inline Double_t GetTimeCF15() const { return TimeCF15; }
+    inline Double_t GetTimeCF25() const { return TimeCF25; }
+    inline Double_t GetTimeCF50() const { return TimeCF50; }
+    inline Bool_t GetTrigger() const { return Trigger; }
 
   private:
     // Auxiliary methods
-    Double_t CrossingPoint(Double_t value, Bool_t isGreaterOrLesser, Int_t binStart, Int_t binEnd);
+    Int_t CrossingPoint(Double_t value, Bool_t isGreaterOrLesser, Int_t binStart, Int_t binEnd);
     
 
     WaveDRS fWave; //!
@@ -45,11 +48,14 @@ class WaveformMPPC
     // Estimators
     Double_t Charge,
              Amplitude,
-             TimeCF;
+             TimeCF15,
+             TimeCF25,
+             TimeCF50;
+    Bool_t   Trigger;
 
     // Others
-    Double_t Baseline,
-             SigmaNoise;
+    Double_t Baseline; //!
+    Double_t SigmaNoise; //!
 };
 
 

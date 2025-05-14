@@ -41,7 +41,11 @@ void ConfigAnalyzer::LoadConfig(const char* filename)
         paramValue = regex_replace(paramValue, regex("^\\s+|\\s+$"), "");
 
         // Gestisci i vari parametri
-        if(paramName == "lowBase")
+        if(paramName == "trgLevel")
+        {
+            trgLevel = stof(paramValue);
+        }
+        else if(paramName == "lowBase")
         {
             lowBase = stoi(paramValue);
         }
@@ -57,13 +61,13 @@ void ConfigAnalyzer::LoadConfig(const char* filename)
         {
             upInt = stoi(paramValue);
         }
-        else if(paramName == "timeCF")
+        else if(paramName == "nCircles_Time")
         {
-            timeCF = stof(paramValue);
+            nCircles_Time = stoi(paramValue);
         }
-        else if(paramName == "timeCF_Sum")
+        else if(paramName == "nCircles_Position")
         {
-            timeCF_Sum = stof(paramValue);
+            nCircles_Position = stoi(paramValue);
         }
         else
         {
@@ -75,6 +79,7 @@ void ConfigAnalyzer::LoadConfig(const char* filename)
 }
 
 
+
 void ConfigAnalyzer::PrintDebug() const
 {
     cout << "ConfigAnalyzer parameters:" << endl;
@@ -82,7 +87,7 @@ void ConfigAnalyzer::PrintDebug() const
     cout << "upBase: " << upBase << endl;
     cout << "lowInt: " << lowInt << endl;
     cout << "upInt: " << upInt << endl;
-    cout << "timeCF: " << timeCF << endl;
-    cout << "timeCF_Sum: " << timeCF_Sum << endl;
+    cout << "nCircles_Time: " << nCircles_Time << endl;
+    cout << "nCircles_Position: " << nCircles_Position << endl;
 }
 

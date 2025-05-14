@@ -15,10 +15,14 @@ struct WaveDRS
 {
     ROOT::RVecD times;
     ROOT::RVecD samples;
+    Double_t baseline = 0.450;
 
     // Costruttori
     WaveDRS() = default;
     WaveDRS(ROOT::RVecD t, ROOT::RVecD s) : times(t), samples(s) {}
+
+    // Set baseline operator
+    inline void SetBaseline(Double_t newbase) { baseline = newbase; };
 
     // Operatore di assegnazione
     WaveDRS& operator=(const WaveDRS& other)
@@ -27,6 +31,7 @@ struct WaveDRS
         {
             times = other.times;
             samples = other.samples;
+            baseline = other.baseline;
         }
         return *this;
     }
@@ -37,7 +42,6 @@ struct WaveDRS
         return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
     }
 
-    // Operatore di somma
     WaveDRS operator+(const WaveDRS& other) const
     {
         if(times.size() != other.times.size())
@@ -46,6 +50,7 @@ struct WaveDRS
         }
 
         WaveDRS result;
+        Double_t baseline_media = (baseline + other.baseline) / 2.0;
 
         for(size_t i = 0; i < times.size(); i++)
         {
@@ -55,30 +60,35 @@ struct WaveDRS
             if(TMath::Abs(time1 - time2) < 1e-6)  // Tempi quasi uguali
             {
                 result.times.push_back(time1);
-                result.samples.push_back(samples[i] + other.samples[i]);
+                // Somma le ampiezze rispetto alla propria baseline e aggiungi la baseline media
+                Double_t summed_sample = (samples[i] - baseline) + (other.samples[i] - other.baseline) + baseline_media;
+                result.samples.push_back(summed_sample);
             }
-            else  // Tempi diversi, usa interpolazione o approssimazione ai bordi
+            else
             {
                 Double_t meanTime = (time1 + time2) / 2;
                 Double_t interpSample1, interpSample2;
 
-                if(i == 0 || i == times.size() - 1)  // Gestione dei bordi: usa valori diretti
+                if(i == 0 || i == times.size() - 1)  // Bordi
                 {
                     interpSample1 = samples[i];
                     interpSample2 = other.samples[i];
                 }
-                else  // Interpolazione normale
+                else
                 {
                     interpSample1 = LinearInterpolate(times[i-1], samples[i-1], times[i+1], samples[i+1], meanTime);
                     interpSample2 = LinearInterpolate(other.times[i-1], other.samples[i-1], other.times[i+1], other.samples[i+1], meanTime);
                 }
 
+                Double_t summed_sample = (interpSample1 - baseline) + (interpSample2 - other.baseline) + baseline_media;
                 result.times.push_back(meanTime);
-                result.samples.push_back(interpSample1 + interpSample2);
+                result.samples.push_back(summed_sample);
             }
         }
+
+        result.baseline = baseline_media;  // Setta la baseline media come baseline del risultato
         return result;
-    }
+    }   
 
     // Operatore di somma composto (+=)
     WaveDRS& operator+=(const WaveDRS& other)
@@ -88,6 +98,8 @@ struct WaveDRS
             throw std::invalid_argument("The time vectors must have the same size");
         }
 
+        Double_t baseline_media = (baseline + other.baseline) / 2.0;
+
         for(size_t i = 0; i < times.size(); i++)
         {
             Double_t time1 = times[i];
@@ -95,14 +107,15 @@ struct WaveDRS
 
             if(TMath::Abs(time1 - time2) < 1e-6)  // Tempi quasi uguali
             {
-                samples[i] += other.samples[i];
+                // Somma le ampiezze rispetto alla propria baseline e aggiungi la baseline media
+                samples[i] = (samples[i] - baseline) + (other.samples[i] - other.baseline) + baseline_media;
             }
             else  // Tempi diversi, usa interpolazione o approssimazione ai bordi
             {
                 Double_t meanTime = (time1 + time2) / 2;
                 Double_t interpSample1, interpSample2;
 
-                if(i == 0 || i == times.size() - 1)  // Gestione dei bordi: usa valori diretti
+                if (i == 0 || i == times.size() - 1)  // Gestione dei bordi
                 {
                     interpSample1 = samples[i];
                     interpSample2 = other.samples[i];
@@ -113,12 +126,13 @@ struct WaveDRS
                     interpSample2 = LinearInterpolate(other.times[i-1], other.samples[i-1], other.times[i+1], other.samples[i+1], meanTime);
                 }
 
-                // Aggiornamento di time e sample
-                times[i] = meanTime;
-                samples[i] = interpSample1 + interpSample2;
+                // Somma le ampiezze interpolate rispetto alle rispettive baseline e aggiungi la baseline media
+                samples[i] = (interpSample1 - baseline) + (interpSample2 - other.baseline) + baseline_media;
+                times[i] = meanTime;  // Aggiorna il tempo medio
             }
         }
 
+        baseline = baseline_media;  // Aggiorna la baseline con la baseline media
         return *this;
     }
 
